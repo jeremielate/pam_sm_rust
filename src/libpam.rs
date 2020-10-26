@@ -45,7 +45,23 @@ impl Pam {
         }
     }
 
-
+    fn set_data<T>(&self, module_data_name: &str, data: T) -> PamResult<()> {
+        let b = Box::leak(Box::new(data));
+        let mdn = CString::new(module_data_name)
+            .as_ref()
+            .map_or(ptr::null(), |p| p.as_ptr()) as *const c_char;
+        let r = unsafe {
+            PamError::new(pam_set_data(
+                self.0,
+                mdn,
+                b,
+                Some(|pamh, data, error_status| {
+                    let b = Box::from_raw(data as &mut T);
+                }),
+            ))
+        };
+        r.to_result(())
+    }
 }
 
 /// Extension trait over `Pam`, usually provided by the `libpam` shared library.
@@ -102,7 +118,7 @@ impl PamLibExt for Pam {
     fn get_user(&self, prompt: Option<&str>) -> PamResult<Option<&CStr>> {
         let cprompt = match prompt {
             None => None,
-            Some(p) => Some(CString::new(p)?)
+            Some(p) => Some(CString::new(p)?),
         };
         let mut raw_user: *const c_char = ptr::null();
         let r = unsafe {
@@ -216,9 +232,7 @@ impl PamLibExt for Pam {
 
     fn getenv(&self, name: &str) -> PamResult<Option<&CStr>> {
         let cname = CString::new(name)?;
-        let cenv = unsafe {
-            pam_getenv(self.0, cname.as_ptr())
-        };
+        let cenv = unsafe { pam_getenv(self.0, cname.as_ptr()) };
 
         if cenv.is_null() {
             Ok(None)
@@ -229,9 +243,7 @@ impl PamLibExt for Pam {
 
     fn putenv(&self, name_value: &str) -> PamResult<()> {
         let cenv = CString::new(name_value)?;
-        unsafe {
-            PamError::new(pam_putenv(self.0, cenv.as_ptr())).to_result(())
-        }
+        unsafe { PamError::new(pam_putenv(self.0, cenv.as_ptr())).to_result(()) }
     }
 }
 
