@@ -62,6 +62,24 @@ impl Pam {
         };
         r.to_result(())
     }
+
+    fn get_data<T>(&self, module_data_name: &str) -> PamResult<T> {
+        let mdn = CString::new(module_data_name)
+            .as_ref()
+            .map_or(ptr::null(), |p| p.as_ptr()) as *const c_char;
+        let mut data_ptr: *const c_void = ptr::null();
+
+        let r = unsafe {
+            PamError::new(pam_get_data(self.0,
+            mdn,
+                &mut data_ptr,
+            ))
+        };
+        if data_ptr.is_null() {
+            PamError::BAD_ITEM
+        }
+        r.to_result(data_ptr.cast())
+    }
 }
 
 /// Extension trait over `Pam`, usually provided by the `libpam` shared library.
