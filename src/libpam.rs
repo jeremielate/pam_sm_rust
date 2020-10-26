@@ -26,6 +26,13 @@ mod private {
     impl Sealed for super::Pam {}
 }
 
+extern "C" fn data_cleanup<T: Sized>(_: PamHandle, data: *mut c_void, _: c_int) {
+    let t: *mut T = data.cast();
+    unsafe {
+        let _b = Box::from_raw(t);
+    }
+}
+
 impl Pam {
     // End users should call the item specific methods
     fn get_cstr_item(&self, item_type: PamItemType) -> PamResult<Option<&CStr>> {
@@ -45,40 +52,44 @@ impl Pam {
         }
     }
 
-    fn set_data<T>(&self, module_data_name: &str, data: T) -> PamResult<()> {
+    pub fn set_data<T>(&self, module_data_name: &str, data: T) -> PamResult<()> {
         let b = Box::leak(Box::new(data));
-        let mdn = CString::new(module_data_name)
-            .as_ref()
-            .map_or(ptr::null(), |p| p.as_ptr()) as *const c_char;
+        let mdn = match CString::new(module_data_name).as_ref() {
+            Ok(v)  => v.as_ptr(),
+            Err(_) => return Err(PamError::SERVICE_ERR),
+        } as *const c_char;
+
+        let data_ptr: *mut c_void = b as *mut _ as *mut c_void;
+
         let r = unsafe {
             PamError::new(pam_set_data(
                 self.0,
                 mdn,
-                b,
-                Some(|pamh, data, error_status| {
-                    let b = Box::from_raw(data as &mut T);
-                }),
+                data_ptr,
+                Some(data_cleanup::<T>),
             ))
         };
         r.to_result(())
     }
 
-    fn get_data<T>(&self, module_data_name: &str) -> PamResult<T> {
-        let mdn = CString::new(module_data_name)
-            .as_ref()
-            .map_or(ptr::null(), |p| p.as_ptr()) as *const c_char;
-        let mut data_ptr: *const c_void = ptr::null();
+    pub fn get_data<T: Copy>(&self, module_data_name: &str) -> PamResult<T> {
+        let mdn = match CString::new(module_data_name).as_ref() {
+           Ok(v)  => v.as_ptr(),
+            Err(_) => return Err(PamError::SERVICE_ERR),
+        } as *const c_char;
+
+        let mut data_ptr: *const c_void = ptr::null_mut();
 
         let r = unsafe {
             PamError::new(pam_get_data(self.0,
-            mdn,
-                &mut data_ptr,
+            mdn, &mut data_ptr,
             ))
         };
-        if data_ptr.is_null() {
-            PamError::BAD_ITEM
+        if r != PamError::SUCCESS {
+           return Err(r)
         }
-        r.to_result(data_ptr.cast())
+        let data: *const T = data_ptr.cast();
+        unsafe { Ok(*data) }
     }
 }
 
