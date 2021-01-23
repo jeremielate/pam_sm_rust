@@ -2,6 +2,7 @@
 #![allow(non_camel_case_types)]
 
 use pam::{Pam, PamError};
+use severity::Severity;
 use pam_types::{PamConv, PamHandle, PamItemType, PamMessage, PamMsgStyle, PamResponse};
 use std::ffi::{CStr, CString, NulError};
 use std::option::Option;
@@ -90,6 +91,8 @@ pub trait PamLibExt: private::Sealed {
     /// - `NAME=` will set variable `NAME` to an empty value
     /// - `NAME` will unset the variable `NAME`
     fn putenv(&self, name_value: &str) -> PamResult<()>;
+
+    fn syslog(&self, priority: Severity, message: &str) -> PamResult<()>;
 }
 
 impl From<NulError> for PamError {
@@ -233,6 +236,15 @@ impl PamLibExt for Pam {
             PamError::new(pam_putenv(self.0, cenv.as_ptr())).to_result(())
         }
     }
+
+    fn syslog(&self, priority: Severity, message: &str) -> PamResult<()> {
+        let _fmt = CString::new("%s")?;
+        let message = CString::new(message)?;
+        unsafe {
+            pam_syslog(self.0, libc::LOG_AUTH | priority.to_int(), _fmt.as_ptr(), message.as_ptr());
+        }
+        Ok(())
+    }
 }
 
 unsafe fn set_item(pamh: PamHandle, item_type: PamItemType, item: *const c_void) -> PamResult<()> {
@@ -267,4 +279,11 @@ extern "C" {
         authok_ptr: *mut *const c_char,
         prompt: *const c_char,
     ) -> c_int;
+
+    pub fn pam_syslog(
+        pamh: PamHandle,
+        priority: c_int,
+        fmt: *const c_char,
+        ...
+        );
 }

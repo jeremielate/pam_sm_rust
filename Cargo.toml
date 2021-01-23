@@ -25,3 +25,6 @@ tag-message = "pams {{version}}"
 
 [package.metadata.docs.rs]
 features = ["libpam"]
+
+[dependencies]
+libc = "0.2.82"

@@ -29,6 +29,8 @@
 
 #[cfg(feature = "libpam")]
 mod libpam;
+#[cfg(feature = "libpam")]
+mod severity;
 mod pam;
 mod pam_types;
 
@@ -38,3 +40,5 @@ pub use pam::{Pam, PamError, PamFlag, PamServiceModule};
 pub use libpam::{PamLibExt, PamResult};
 #[cfg(feature = "libpam")]
 pub use pam_types::PamMsgStyle;
+#[cfg(feature = "libpam")]
+pub use severity::Severity;
