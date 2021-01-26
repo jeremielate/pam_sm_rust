@@ -8,6 +8,7 @@ use std::fmt;
 /// Opaque PAM handle, with additional native methods available via `PamLibExt`.
 pub struct Pam(pub(crate) PamHandle);
 
+#[derive(Clone, Debug)]
 pub enum PamFlag {
     PAM_SILENT = 0x8000,
     PAM_DISALLOW_NULL_AUTHTOK = 0x0001,
