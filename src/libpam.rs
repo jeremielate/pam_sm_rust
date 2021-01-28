@@ -237,7 +237,7 @@ impl PamLibExt for Pam {
         unsafe {
             pam_syslog(
                 self.0,
-                libc::LOG_AUTH | priority.to_int(),
+                priority.to_int(),
                 _fmt.as_ptr(),
                 message.as_ptr(),
             );
