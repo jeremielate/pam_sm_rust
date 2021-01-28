@@ -2,8 +2,8 @@
 #![allow(non_camel_case_types)]
 
 use pam::{Pam, PamError};
-use severity::Severity;
 use pam_types::{PamConv, PamHandle, PamItemType, PamMessage, PamMsgStyle, PamResponse};
+use severity::Severity;
 use std::ffi::{CStr, CString, NulError};
 use std::option::Option;
 use std::os::raw::{c_char, c_int, c_void};
@@ -45,8 +45,6 @@ impl Pam {
             r.to_result(Some(unsafe { CStr::from_ptr(raw_item as *const c_char) }))
         }
     }
-
-
 }
 
 /// Extension trait over `Pam`, usually provided by the `libpam` shared library.
@@ -105,7 +103,7 @@ impl PamLibExt for Pam {
     fn get_user(&self, prompt: Option<&str>) -> PamResult<Option<&CStr>> {
         let cprompt = match prompt {
             None => None,
-            Some(p) => Some(CString::new(p)?)
+            Some(p) => Some(CString::new(p)?),
         };
         let mut raw_user: *const c_char = ptr::null();
         let r = unsafe {
@@ -219,9 +217,7 @@ impl PamLibExt for Pam {
 
     fn getenv(&self, name: &str) -> PamResult<Option<&CStr>> {
         let cname = CString::new(name)?;
-        let cenv = unsafe {
-            pam_getenv(self.0, cname.as_ptr())
-        };
+        let cenv = unsafe { pam_getenv(self.0, cname.as_ptr()) };
 
         if cenv.is_null() {
             Ok(None)
@@ -232,16 +228,19 @@ impl PamLibExt for Pam {
 
     fn putenv(&self, name_value: &str) -> PamResult<()> {
         let cenv = CString::new(name_value)?;
-        unsafe {
-            PamError::new(pam_putenv(self.0, cenv.as_ptr())).to_result(())
-        }
+        unsafe { PamError::new(pam_putenv(self.0, cenv.as_ptr())).to_result(()) }
     }
 
     fn syslog(&self, priority: Severity, message: &str) -> PamResult<()> {
         let _fmt = CString::new("%s")?;
         let message = CString::new(message)?;
         unsafe {
-            pam_syslog(self.0, libc::LOG_AUTH | priority.to_int(), _fmt.as_ptr(), message.as_ptr());
+            pam_syslog(
+                self.0,
+                libc::LOG_AUTH | priority.to_int(),
+                _fmt.as_ptr(),
+                message.as_ptr(),
+            );
         }
         Ok(())
     }
@@ -280,10 +279,5 @@ extern "C" {
         prompt: *const c_char,
     ) -> c_int;
 
-    pub fn pam_syslog(
-        pamh: PamHandle,
-        priority: c_int,
-        fmt: *const c_char,
-        ...
-        );
+    pub fn pam_syslog(pamh: PamHandle, priority: c_int, fmt: *const c_char, ...);
 }

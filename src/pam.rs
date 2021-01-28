@@ -8,7 +8,7 @@ use std::fmt;
 /// Opaque PAM handle, with additional native methods available via `PamLibExt`.
 pub struct Pam(pub(crate) PamHandle);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PamFlag {
     PAM_SILENT = 0x8000,
     PAM_DISALLOW_NULL_AUTHTOK = 0x0001,
@@ -17,6 +17,12 @@ pub enum PamFlag {
     REINITIALIZE_CRED = 0x0008,
     REFRESH_CRED = 0x0010,
     CHANGE_EXPIRED_AUTHTOK = 0x0020,
+}
+
+impl PamFlag {
+    pub fn is(&self, flag: Self) -> bool {
+        *self as u32 & flag as u32 == flag as u32
+    }
 }
 
 impl fmt::Display for PamError {
